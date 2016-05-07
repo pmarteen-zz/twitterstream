@@ -8,7 +8,7 @@ import akka.actor.{ActorRef, ActorSystem, Inbox, Props}
 import akka.stream.Materializer
 import akka.stream.scaladsl._
 import play.api.mvc._
-import services.{Hashtag, HelloActor, MyTwitterListener, Tweet}
+import services.{HelloActor, MyTwitterListener, Tweet}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -66,8 +66,4 @@ class TwitterListenerController @Inject() (implicit system : ActorSystem, materi
       se => se.foldLeft("Hashtag count: " + se.size)((acc, hashtag) => acc + " Hashtag: " + hashtag.name.filter(_ >= ' ') ) + "\n"
     })
     }
-
-
-
-
 }

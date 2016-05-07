@@ -1,4 +1,4 @@
-name := """play-scala"""
+name := """twitterstream"""
 
 version := "1.0-SNAPSHOT"
 

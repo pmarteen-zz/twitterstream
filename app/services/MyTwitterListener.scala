@@ -1,14 +1,10 @@
 package services
 
-import java.util.concurrent.Executors
-
 import akka.NotUsed
 import akka.actor.{Actor, ActorSystem}
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import twitter4j._
-
-import scala.concurrent.{Future, ExecutionContext}
 
 /**
   * Listener that "Akka"-fies and listens to Twitter4j twitter stream

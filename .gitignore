@@ -11,6 +11,8 @@
 /target
 /.idea_modules
 /.project
+/.sbtserver
+/logs
 /RUNNING_PID
 
 # Compiled Stuff
