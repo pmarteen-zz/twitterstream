@@ -2,12 +2,35 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-# An example controller showing a sample home page
-GET     /                           controllers.TwitterListenerController.actor
+## Actions interacting with live twitter stream
 
 GET     /twitter                    controllers.TwitterListenerController.stream
 
-GET     /hashtags                   controllers.TwitterListenerController.hashTagSequence
+GET     /filter                     controllers.TwitterListenerController.filter(filter: String)
+
+GET     /hashtags                   controllers.TwitterListenerController.hashtags
+
+## Actions loading live twitter stream data into Cassandra
+
+GET     /loadHashtags               controllers.CassandraController.hashtagLoad
+
+GET     /loadTwitter                controllers.CassandraController.load
+
+## Actions for using Spark ontop of Cassandra
+
+GET     /filterPopularHashtags      controllers.SparkController.filterPopularHashtags
+
+## Actions for the fake twitter stream
+
+GET     /fakeTwitter                controllers.FakeTwitterController.fakeStream
+
+GET     /union                      controllers.FakeTwitterController.union(keywords: String)
+
+GET     /fakeFilter             controllers.FakeTwitterController.filter(filter: String)
+
+GET     /mostRetweeted              controllers.FakeTwitterController.mostRetweeted
+
+GET     /descendingByRetweet        controllers.FakeTwitterController.descendingByRetweet
 
 
 # Map static resources from the /public folder to the /assets URL path

@@ -1,22 +1,17 @@
 package services
 
 import akka.NotUsed
-import akka.actor.{Actor, ActorSystem}
-import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy}
+import play.api.libs.json.{JsValue, Json}
 import twitter4j._
 
 /**
-  * Listener that "Akka"-fies and listens to Twitter4j twitter stream
+  * Listener that creates an Akka source from a Twitter4j twitter stream
   *
   * Author: peter.marteen
   */
-final case class Hashtag(name : String)
-
-case class Tweet(body : String, user : String) {
-  def hashTags: Set[Hashtag] =
-    body.split(" ").collect { case t if t.startsWith("#") => Hashtag(t) }.toSet
-}
 
 class MyTwitterListener {
 
@@ -26,15 +21,15 @@ class MyTwitterListener {
 
   val ts: TwitterStream = TwitterStreamFactory.getSingleton
 
-
   /**
     * Registers listener to twitterStream and starts listening to all english tweets
     *
     * @return Akka Source of Tweets
     */
   def listen: Source[Tweet, NotUsed] = {
+
     // Create ActorRef Source producing Tweet events
-    val (actorRef, publisher) = Source.actorRef[Tweet](100, OverflowStrategy.dropHead).toMat(Sink.asPublisher(false))(Keep.both).run()
+    val (actorRef, publisher) = Source.actorRef[Tweet](100, OverflowStrategy.fail).toMat(Sink.asPublisher(false))(Keep.both).run
 
     val statusListener: StatusListener = new StatusListener {
       override def onStallWarning(stallWarning: StallWarning): Unit = {}
@@ -45,7 +40,7 @@ class MyTwitterListener {
 
       //Statuses will be asynchronously sent to publisher actor
       override def onStatus(status: Status): Unit = {
-        actorRef ! new Tweet(status.getText, status.getUser.getName)
+        actorRef ! Tweet(status.getText, status.getUser.getName, status.getRetweetCount)
       }
 
       override def onTrackLimitationNotice(i: Int): Unit = {}
@@ -54,6 +49,7 @@ class MyTwitterListener {
     }
 
     //Tie our listener to the TwitterStream and start listening
+    ts.clearListeners()
     ts.addListener(statusListener)
     ts.sample("en")
 
@@ -61,23 +57,42 @@ class MyTwitterListener {
     Source.fromPublisher(publisher)
   }
 
+  def close() = {
+    ts.cleanUp()
+  }
+
   /**
     * Filters tweet stream for those containing hashtags
-    *
-    * @return Future of Seq containing set of hashtags in each tweet
     */
-  def hashTags = {
-    val source: Source[Tweet, NotUsed] = this.listen
-
-    source.filter(_.hashTags.nonEmpty).take(100).map(_.hashTags).runWith(Sink.seq)
-  }
-
-}
-
-
-class HelloActor extends Actor {
-  def receive = {
-    case msg: String => sender ! s"Hello, $msg"
+  def hashtagSource: (Source[Set[Hashtag], NotUsed]) = {
+    val src = this.listen
+    src.filter(_.hashTags.nonEmpty).map(_.hashTags)
   }
 }
 
+final case class Hashtag(name : String)
+
+//Representation of tweet
+case class Tweet(val body : String, val user : String, val retweets : Int) {
+  def hashTags: Set[Hashtag] =
+    body.split(" |\n").collect { case t if t.startsWith("#") => Hashtag(t) }.toSet
+
+  //used to write tweet to table
+  def serialize : String = {
+    val trimBody = body.replace("'","")
+    val trimUser = user.replace("'","")
+    s"'$trimBody','$trimUser',$retweets"
+  }
+}
+object Tweet {
+  implicit val tweetInfoFormat = Json.format[Tweet]
+  //Deserialize json format to Tweet object
+  def apply(jsv : JsValue) : Tweet = {
+    new Tweet((jsv \ "message").as[String], (jsv \ "author").as[String], (jsv \ "retweets").as[Int])
+  }
+
+  //Flow used to serialize tweets to json format
+  def mapJson = Flow[Tweet].map { tweet =>
+    Json.toJson(tweet)
+  }
+}
